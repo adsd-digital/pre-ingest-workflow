@@ -1,13 +1,21 @@
-#Script to Analyse DROID reports
-#inspired by Freud (https://github.com/digital-preservation/freud (Copyright (c) 2019, The National Archives)
-#This script will analyse the DROID report and categorizes the formats according to
+# Script to Analyse DROID reports
+# parts of the code are taken from and/or inspired by Freud (https://github.com/digital-preservation/freud 
+# (Copyright (c) 2019, The National Archives)
+# Inputs for this script are 
+# (a) a droid report in csv (file path given when starting the program
+# (b) a file format list (format-list.csv) that is located in the folder that the script is run from
+# The format list needs the following columns:
+# unchanged, automatic migration, manual migration, cannot be opened, delete, password protected, compressed, research started,
+# not categorized yet,appraisal hint.
+
+# This script will analyse the DROID report and categorizes the formats according to
 # - needs for preparation before ingest
 # - deleteable formats
 # - hint for appraisal
-#This will then create in the directory which the program is running from
-# (a) an excel spreadsheet added columns for
+# This will then create in the directory which the program is running from
+# (a) an excel spreadsheet with added columns for
 #     Category, Deletion and Appraisal,
-# (b) plus a csv-file with the file pathes for all the files that are marked for deletion
+# (b) a csv-file with the file paths for all the files that are marked for deletion
 # (c) a file with the file paths in a tag format that can afterwards be added to the json file that archifiltre 
 #     (https://github.com/SocialGouv/archifiltre-docs) creates. If you want to use these tags you need to tell the
 #     script how to shorten the file paths so archifiltre will be able to interpret them: 
@@ -24,7 +32,8 @@ import numpy as np
 import os
 import json
 
-#below loads the csv file into pandas and takes required columns, additional columns for multiple identification are not taken yet as this breaks the csv read. It also loads a copy of the white list formats accepted into DRI
+# below loads the csv file into pandas and takes required columns, additional columns for multiple identification are not taken yet as this breaks the csv read. 
+# It also asks for the archifiltre prefix and loads a copy of the format-list.csv
 csvraw = input("Enter filepath of DROID csv to analyse: ")
 csvraw = csvraw.strip('"')
 columns_needed = ['ID','PARENT_ID','URI','FILE_PATH','NAME','METHOD','STATUS','SIZE','TYPE','EXT','LAST_MODIFIED','EXTENSION_MISMATCH','FORMAT_COUNT','PUID','MIME_TYPE','FORMAT_NAME','FORMAT_VERSION']
@@ -38,7 +47,6 @@ archifiltre_prefix = input("Enter the prefix that has to be removed for the arch
 formatlist = pd.read_csv('format-list.csv', delimiter=";")
 
 
-
 def format_categorization():
 
     #Output file
@@ -47,15 +55,8 @@ def format_categorization():
     #entire droid file as input
     all = csv
 
-    all.loc[3, 'Category'] = ''
-
     #establish lists according to column names in format-list.csv
     appraisalList = formatlist['appraisal hint'].values.tolist()
-
-    #delFaktorList = formatlist['deletion in combination with other factors'].values.tolist()
-
-    #problemList = formatlist['problematic'].values.tolist()
-
     unchangedList = formatlist['unchanged'].values.tolist()
     autoMigList = formatlist['automatic migration'].values.tolist()
     manMigList = formatlist['manual migration'].values.tolist()
@@ -128,6 +129,7 @@ def format_categorization():
                 elif puid in unknownList:
                     all.loc[i, 'Category'] = 'format not categorized'
 
+    #formatting and output of XLSX-sheet
     categorybook = formatcat.book
     format = categorybook.add_format({
         'bold': True,
@@ -141,6 +143,7 @@ def format_categorization():
                               '', ''], format)
     formatcat.close()
 
+    # generation of tags for archifiltre  
     appraisaltag = {"87c45fe4-c027-4c65-9594-fb4e0040a68c": { "ffIds": appraisalArchifiltreList,
                                                         'id': "87c45fe4-c027-4c65-9594-fb4e0040a68c",
                                                         "name": "Bewertungshinweise"
@@ -155,8 +158,9 @@ def format_categorization():
 
     with open(droidname+"archifiltre-tags.txt", "w", encoding='utf-8') as f:
         f.write(appraisaltag + '}')
-
-    with open(droidname+"delete.csv", "w", encoding='utf-8') as g:
+          
+    # generation of file with list of files that are to be deleted
+    with open(droidname+"_delete.csv", "w", encoding='utf-8') as g:
         for i in deletionList:
             g.write(i + '\n')
 
