@@ -53,9 +53,10 @@ def format_categorization():
     #Output file
     formatcat = pd.ExcelWriter(droidname + '_categorization.xlsx', engine='xlsxwriter')
 
-    #entire droid file as input
+    #entire droid file as input, adding "Category" columns (has to exist for condition checking)
     all = csv
-
+    all.loc[3, 'Category'] = ''
+      
     #establish lists according to column names in format-list.csv
     appraisalList = formatlist['appraisal hint'].values.tolist()
     unchangedList = formatlist['unchanged'].values.tolist()
