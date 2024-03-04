@@ -44,6 +44,7 @@ droidname = droidname.rstrip('.csv')
 archifiltre_prefix = input("Enter the prefix that has to be removed for the archifiltre json (If no archifiltre tags are"
                            " needed, you can leave this empty. Further info in the comment in the script.):")
 
+# delimiter for this csv file is currently semicolon - if the csv is with commas (as the DROID output is) the delimiter parameter can be dropped)
 formatlist = pd.read_csv('format-list.csv', delimiter=";")
 
 
