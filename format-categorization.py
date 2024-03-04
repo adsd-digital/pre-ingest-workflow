@@ -1,10 +1,23 @@
 #Script to Analyse DROID reports
-#inspired by Freud
+#inspired by Freud (https://github.com/digital-preservation/freud (Copyright (c) 2019, The National Archives)
 #This script will analyse the DROID report and categorizes the formats according to
 # - needs for preparation before ingest
 # - deleteable formats
 # - hint for appraisal
-#This will then create an excel spreadsheet in the directory which the program is running from.
+#This will then create in the directory which the program is running from
+# (a) an excel spreadsheet added columns for
+#     Category, Deletion and Appraisal,
+# (b) plus a csv-file with the file pathes for all the files that are marked for deletion
+# (c) a file with the file paths in a tag format that can afterwards be added to the json file that archifiltre 
+#     (https://github.com/SocialGouv/archifiltre-docs) creates. If you want to use these tags you need to tell the
+#     script how to shorten the file paths so archifiltre will be able to interpret them: 
+#     The file paths in the archifiltre json start with the folder that is has been handed over for analysis to archifiltre.
+#     In DROID the file paths are absolute. So for the file paths to work in archifiltre the folders leading 
+#     up to the analyed folders have to be removed.
+#     e.g. Let's say, in archifiltre the folder "archifolder" has been analysed, in DROID and in archifiltre.
+#     "archifolder" is placed at /path/to/archifolder.
+#     Then you need to give the script as input for prefix for archifiltre: "/path/to/"
+      
 
 import pandas as pd
 import numpy as np
@@ -20,10 +33,8 @@ droidname = os.path.basename(csvraw)
 droidname = droidname.rstrip('.csv')
 
 archifiltre_prefix = input("Enter the prefix that has to be removed for the archifiltre json (If no archifiltre tags are"
-                           " needed, you can leave this empty.):")
+                           " needed, you can leave this empty. Further info in the comment in the script.):")
 
-#originalWhiteList = pd.read_csv('formats-whitelist.csv')
-#deleteList = pd.read_csv('delete-list.csv')
 formatlist = pd.read_csv('format-list.csv', delimiter=";")
 
 
