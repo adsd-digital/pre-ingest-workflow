@@ -24,7 +24,7 @@
 #     up to the analyed folders have to be removed.
 #     e.g. Let's say, in archifiltre the folder "archifolder" has been analysed, in DROID and in archifiltre.
 #     "archifolder" is placed at /path/to/archifolder.
-#     Then you need to give the script as input for prefix for archifiltre: "/path/to/"
+#     Then you need to give the script as input for prefix for archifiltre: "/path/to"
       
 
 import pandas as pd
