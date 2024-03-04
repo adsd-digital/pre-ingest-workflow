@@ -1,5 +1,5 @@
 In this repository the Archive of Social Democracy of the Friedrich-Ebert-Stiftung publishes scripts used in its workflow for preparing folders
-for appraisal and ingest into to digital preservation system. The script collection will hopefully grow over time.
+for appraisal and ingest into a digital preservation system. The script collection will hopefully grow over time.
 The scripts are everyday tools, created for a specific use case and only tested in this environment (currently Ubuntu 22.04). 
 
 
