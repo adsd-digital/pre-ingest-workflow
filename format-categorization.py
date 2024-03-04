@@ -158,7 +158,7 @@ def format_categorization():
     appraisaltag = appraisaltag.strip("{")
     appraisaltag = appraisaltag.strip("}")
 
-    with open(droidname+"archifiltre-tags.txt", "w", encoding='utf-8') as f:
+    with open(droidname+"_archifiltre-tags.txt", "w", encoding='utf-8') as f:
         f.write(appraisaltag + '}')
           
     # generation of file with list of files that are to be deleted
