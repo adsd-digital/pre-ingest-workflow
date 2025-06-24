@@ -10,7 +10,7 @@
 
 # This script will analyse the DROID report and categorizes the formats according to
 # - needs for preparation before ingest
-# - deleteable formats
+# - deletable formats
 # - hint for appraisal
 # This will then create in the directory which the program is running from
 # (a) an excel spreadsheet with added columns for
