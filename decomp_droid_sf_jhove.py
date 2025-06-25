@@ -10,7 +10,7 @@ import py7zr
 
 # TODO set up log
 
-def setup_dir():
+def setup_config():
     analyze_dir = input("Put in the path to the directory that should be analyzed.\n "
                         "If left empty, current working directory is used.\n")
     analyze_dir = analyze_dir.strip(" ").strip('"').strip("'")
@@ -30,13 +30,31 @@ def setup_dir():
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
     print(f"Output-Ordner ist {output_dir}.")
-    return analyze_dir, output_dir
+    update = False
+    update_yn = input("Do you want to update Droid and siegfried? If yes, please type Y.\n"
+                      "Otherwise update will be skipped.")
+    if update_yn == "Y":
+        update = True
+    decomp_yn = input("Should the script try to decompress archives? Then please type Y.\n"
+                      "Default is no.")
+    if decomp_yn == "Y":
+        decomp = True
+    else:
+        decomp = False
+    hash_yn = input("Should droid generate hash sums? Then please type Y.\n"
+                      "Default is no.")
+    if hash_yn == "Y":
+        hash = True
+    else:
+        hash = False
+    return analyze_dir, output_dir, update, decomp, hash
 
 
 def droid_sf_update():
     subprocess.run(['java', '-jar',
                     '/home/dlza/Programme/droid-binary-6.8.0-bin/droid-command-line-6.8.0.jar', '-d'])
     subprocess.run(['sf', '-update'])
+
 
 def droid_compressed(folderinput, droid_output):
     droidfile = os.path.join(droid_output, "droid_compressed.csv")
@@ -55,7 +73,6 @@ def droid_shutil(comp_path, fold_path):
     except BaseException:
         print("Fehler")
         traceback.print_exc()
-
 
 
 # def droid_unzip(zip_path, fold_name, fold_exists):
@@ -103,6 +120,7 @@ def droid_decomp_routine(droid_input):
                 # print(ext)
                 # print(comp_types[ext])
                 folder_name = comp_file_path.rstrip("." + ext)
+
                 # Problem: tar.xz -> wenn xz weggenommen wird, immer noch tar, dadurch:
                 # schon vorhandener gleichnamiger Ordner nicht erkannt
                 folder_exists = False
@@ -121,13 +139,25 @@ def droid_decomp_routine(droid_input):
                       f"Liegt an {comp_file_path}")
 
 
-def droid_complete(droid_input):
-    print("xx")
+def droid_complete(folder_input, droid_output, hash_generation):
+    droidfile = os.path.join(droid_output, "droid_complete.csv")
+    genHash = 'generateHash=false'
+    if hash_generation:
+        genHash = 'generateHash=true'
+    # Warning: Running droid creates a derby.log file in the CWD.
+    subprocess.run(['java', '-jar',
+                    '/home/dlza/Programme/droid-binary-6.8.0-bin/droid-command-line-6.8.0.jar',
+                    folder_input, '-R', '-Pr', genHash, '-o', droidfile])
+    return droidfile
 
 
-droid_sf_update()
-analyze, output = setup_dir()
+
+analyze, output, dsf_update, decompress, hash_gen = setup_config()
 # print(analyze)
 # print(output)
-droid_comp = droid_compressed(analyze, output)
-droid_decomp_routine(droid_comp)
+if dsf_update:
+    droid_sf_update()
+if decompress:
+    droid_comp = droid_compressed(analyze, output)
+    droid_decomp_routine(droid_comp)
+complete_droidfile = droid_complete(analyze, output, hash_gen)
