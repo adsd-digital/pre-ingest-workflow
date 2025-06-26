@@ -4,8 +4,10 @@ import subprocess
 import traceback
 from zipfile import ZipFile
 
+import numpy as np
 import pandas as pd
 import py7zr
+from io import StringIO
 
 
 # TODO set up log
@@ -29,6 +31,7 @@ def setup_config():
         # print(f"{output_dir}")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
+
     print(f"Output-Ordner ist {output_dir}.")
     update = False
     update_yn = input("Do you want to update Droid and siegfried? If yes, please type Y.\n"
@@ -42,7 +45,7 @@ def setup_config():
     else:
         decomp = False
     hash_yn = input("Should droid generate hash sums? Then please type Y.\n"
-                      "Default is no.")
+                    "Default is no.")
     if hash_yn == "Y":
         hash = True
     else:
@@ -140,16 +143,61 @@ def droid_decomp_routine(droid_input):
 
 
 def droid_complete(folder_input, droid_output, hash_generation):
-    droidfile = os.path.join(droid_output, "droid_complete.csv")
+    complete_droid = os.path.join(droid_output, "droid_complete.droid")
+    complete_droid_csv = os.path.join(droid_output, "droid_complete.csv")
+
     genHash = 'generateHash=false'
     if hash_generation:
         genHash = 'generateHash=true'
     # Warning: Running droid creates a derby.log file in the CWD.
     subprocess.run(['java', '-jar',
                     '/home/dlza/Programme/droid-binary-6.8.0-bin/droid-command-line-6.8.0.jar',
-                    folder_input, '-R', '-Pr', genHash, '-o', droidfile])
-    return droidfile
+                    '-R', '-a', folder_input, '-At', '-Wt', '-Pr', genHash, '-p', complete_droid])
+    subprocess.run(['java', '-jar',
+                    '/home/dlza/Programme/droid-binary-6.8.0-bin/droid-command-line-6.8.0.jar',
+                    '-p', complete_droid, '-E', complete_droid_csv])
 
+    return complete_droid_csv
+
+
+def sf_analyze(droid_file, output_folder):
+    # Achtung: beim Einlesen werde manche Dateitypen geändert, z.B. Int zu Float(?)
+    droid_complete_csv = pd.read_csv(droid_file)
+    droid_complete_csv[['sf_id', 'sf_warning', 'sf_errors']] = None
+    droid_sf_csv = os.path.join(output_folder, "droid_sf.csv")
+    for i in range(len(droid_complete_csv)):
+    #for i in range(5):
+        #print(droid_complete_csv['NAME'].iloc[i])
+        if droid_complete_csv['TYPE'].iloc[i] == ('File' or 'Container'):
+            sf_an_path = droid_complete_csv['FILE_PATH'].iloc[i]
+            # print(sf_an_path)
+            droid_fmt = droid_complete_csv['PUID'].iloc[i]
+            droid_fmt_count = droid_complete_csv['FORMAT_COUNT'].iloc[i]
+            # print(type(sf_an_path))
+            # print(droid_fmt)
+            # print(droid_fmt_count)
+            # sf_res = subprocess.run(['sf', '-csv', sf_an_path])
+            #try:
+            sf_res = subprocess.check_output(['sf', '-csv', sf_an_path], text=True)
+            #except BaseException:
+            #    print("Fehler")
+            #    traceback.print_exc()
+            csv_io = StringIO(sf_res)
+            df_sf_res = pd.read_csv(csv_io)
+            # print(df_sf_res.columns)
+            # print(df_sf_res['id'].iloc[0])
+            # droid_complete_csv['sf_id'].iloc[i] = df_sf_res['id'].iloc[0]
+            droid_complete_csv.loc[i, 'sf_id'] = df_sf_res['id'].iloc[0]
+            droid_complete_csv.loc[i, 'sf_warning'] = df_sf_res['warning'].iloc[0]
+            droid_complete_csv.loc[i, 'sf_errors'] = df_sf_res['errors'].iloc[0]
+    #print(droid_complete_csv['PARENT_ID'].iloc[i])
+    droid_complete_csv['PARENT_ID'] = (
+        pd.to_numeric(droid_complete_csv['PARENT_ID'], errors='coerce').astype('Int64'))
+    droid_complete_csv['SIZE'] = (
+        pd.to_numeric(droid_complete_csv['SIZE'], errors='coerce').astype('Int64'))
+    droid_complete_csv['FORMAT_COUNT'] = (
+        pd.to_numeric(droid_complete_csv['FORMAT_COUNT'], errors='coerce').astype('Int64'))
+    droid_complete_csv.to_csv(droid_sf_csv)
 
 
 analyze, output, dsf_update, decompress, hash_gen = setup_config()
@@ -161,3 +209,5 @@ if decompress:
     droid_comp = droid_compressed(analyze, output)
     droid_decomp_routine(droid_comp)
 complete_droidfile = droid_complete(analyze, output, hash_gen)
+# print(complete_droidfile)
+sf_analyze(complete_droidfile, output)
