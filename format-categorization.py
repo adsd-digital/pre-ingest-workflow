@@ -87,7 +87,7 @@ def format_categorization():
                 all.loc[i, 'Category'] = 'No reliable format id'
 
             # empty files are classed as deletable
-            if (all.loc[i, 'SIZE'] == 0):
+            if all.loc[i, 'SIZE'] == 0:
                 all.loc[i, 'Category'] = 'delete because empty'
                 all.loc[i, 'Deletion'] = 'TRUE'
                 delKand = all.loc[i, 'FILE_PATH']
