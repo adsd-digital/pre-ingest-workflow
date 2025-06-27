@@ -12,6 +12,13 @@ from io import StringIO
 
 # TODO set up log
 
+def setup_dir(root, dir_name):
+    dir_path = os.path.join(root, dir_name)
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)
+    return dir_path
+
+
 def setup_config():
     analyze_dir = input("Put in the path to the directory that should be analyzed.\n "
                         "If left empty, current working directory is used.\n")
@@ -50,7 +57,20 @@ def setup_config():
         hash = True
     else:
         hash = False
-    return analyze_dir, output_dir, update, decomp, hash
+    ## True for Testing purposes!!
+    do_jhove = True
+    jhove_yn = input("Do you want to do a jhove validation?\n "
+                     "If yes, please type Y.\n"
+                     "Default is YES.")
+    if jhove_yn == "Y":
+        do_jhove = True
+    mk_copies = False
+    copies_yn = input("Do you want the script to generate copies for files with uncertain or incorrect formats?\n "
+                      "If yes, please type Y.\n"
+                      "Otherwise no copies will be made.")
+    if copies_yn == "Y":
+        mk_copies = True
+    return analyze_dir, output_dir, update, decomp, hash, do_jhove, mk_copies
 
 
 def droid_sf_update():
@@ -166,7 +186,7 @@ def sf_analyze(droid_file, output_folder):
     droid_complete_csv[['sf_id', 'sf_warning', 'sf_errors']] = None
     droid_sf_csv = os.path.join(output_folder, "droid_sf.csv")
     for i in range(len(droid_complete_csv)):
-    #for i in range(5):
+        #for i in range(5):
         #print(droid_complete_csv['NAME'].iloc[i])
         if droid_complete_csv['TYPE'].iloc[i] == ('File' or 'Container'):
             sf_an_path = droid_complete_csv['FILE_PATH'].iloc[i]
@@ -199,8 +219,73 @@ def sf_analyze(droid_file, output_folder):
         pd.to_numeric(droid_complete_csv['FORMAT_COUNT'], errors='coerce').astype('Int64'))
     droid_complete_csv.to_csv(droid_sf_csv)
 
+    return droid_complete_csv
 
-analyze, output, dsf_update, decompress, hash_gen = setup_config()
+
+def jhove_and_copy(droid_sf_analysis, output_folder, dojh, mkcp):
+    droid_sf_analysis[['sf_EQ_droid', 'jh_RepMod', 'jh_status', 'jh_error', 'jh_error_id']] = None
+    #jhove_formats = ['fmt']
+    cppath = ''
+    if mkcp:
+        folders = {'not_valid_dir': 'not_valid',
+                   'unwell_dir': 'not_well_formed',
+                   'mult_dir': 'mult_fmt_id'}
+        for f in folders:
+            fold_path = setup_dir(output_folder, folders[f])
+            folders[f] = fold_path
+    for i in range(len(droid_sf_analysis)):
+        # Bedingungen noch verfeinern
+        if droid_sf_analysis.loc[i, 'TYPE'] == ('File' or 'Container'):
+            file_path = droid_sf_analysis.loc[i, 'FILE_PATH']
+            if droid_sf_analysis['sf_id'].iloc[i] != droid_sf_analysis['PUID'].iloc[i]:
+                droid_sf_analysis.loc[i, 'sf_EQ_droid'] = False
+                #dest_file = os.path.join(folders['mult_dir'], os.path.basename(file_path))
+                cppath = folders['mult_dir']
+            else:
+                droid_sf_analysis.loc[i, 'sf_EQ_droid'] = True
+                # Prüfen: gibt es Fälle, wenn !=1 und trotzdem korrekt erkannt?
+                # Sinnvoller: jhove auswählen lassen oder HUL festlegen?
+                # oder Liste von Formaten, um Bytestream-"Prüfung" auszuschließen?
+                if droid_sf_analysis.loc[i, 'FORMAT_COUNT'] == 1:
+                    jhove_output = subprocess.check_output(['jhove', file_path], text=True)
+                    jhove_output_array = jhove_output.split('\n')
+                    for item in jhove_output_array:
+                        bytestream = False
+                        error_fd = False
+                        if "ReportingModule: " in item:
+                            mod = item.split(': ')[1].split(',')[0]
+                            droid_sf_analysis.loc[i, 'jh_RepMod'] = mod
+                            if mod == 'BYTESTREAM':
+                                bytestream = True
+                        if "Status: " in item:
+                            status = item.split(': ')[1]
+                            if status == 'Not well-Formed':
+                                cppath = folders['unwell_dir']
+                            elif status == 'Well-Formed, but not valid':
+                                cppath = folders['not_valid_dir']
+                            if bytestream:
+                                status = "BS! " + status
+                            droid_sf_analysis.loc[i, 'jh_status'] = status
+                        if "ErrorMessage: " in item:
+                            error_fd = True
+                            error = item.split(': ')[1]
+                            droid_sf_analysis.loc[i, 'jh_error'] = mod
+                        if "ID: " in item:
+                            if error_fd:
+                                error_id = item.split(': ')[1]
+                                droid_sf_analysis.loc[i, 'jh_error_id'] = error_id
+                        #print(cppath)
+            if mkcp and cppath != '':
+                if not os.path.exists(cppath):
+                    shutil.copy(file_path, cppath)
+
+    dr_sf_jh_csv = os.path.join(output_folder, "droid_sf_jhove.csv")
+    droid_sf_analysis.to_csv(dr_sf_jh_csv)
+    #print(jhove_output[rpm_id:])
+    # print(droid_sf_analysis['FILE_PATH'].iloc[i])
+
+
+analyze, output, dsf_update, decompress, hash_gen, do_jhove, make_copy = setup_config()
 # print(analyze)
 # print(output)
 if dsf_update:
@@ -210,4 +295,5 @@ if decompress:
     droid_decomp_routine(droid_comp)
 complete_droidfile = droid_complete(analyze, output, hash_gen)
 # print(complete_droidfile)
-sf_analyze(complete_droidfile, output)
+droid_sf = sf_analyze(complete_droidfile, output)
+jhove_and_copy(droid_sf, output, do_jhove, make_copy)
